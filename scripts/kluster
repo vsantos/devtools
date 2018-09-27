@@ -95,12 +95,10 @@ function change_kubernetes_cluster {
     logger 'INFO' "K8s Dashboard will be opened automaticaly, if not: ${KUBERNETES_DASHBOARD_URL}"
 }
 
-validate_binary 'basename'
-validate_binary 'kubectl'
-validate_binary 'kubectx'
-validate_binary 'xdg-open'
-validate_binary 'xclip'
-validate_binary 'jq'
+VALIDATE_BINARIES=('basename' 'kubectl' 'kubectx' 'xdg-open' 'xclip' 'jq')
+for binary in ${VALIDATE_BINARIES[*]}; do
+    validate_binary  "$binary"
+done
 
 validate_kubernetes_cluster_input "${1}"
 get_kubernetes_user_token
