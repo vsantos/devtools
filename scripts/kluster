@@ -1,0 +1,107 @@
+#!/bin/bash
+
+## Maintainer: vsantos.py@gmail.com
+## Version: 1.0
+
+function logger(){
+    LOG_DATE_TIME=$(date +"%Y-%m-%d %T")
+
+    if [[ "$1" == 'INFO' ]]; then
+        echo -e "\e[35m${LOG_DATE_TIME} - [INFO]: $2"
+        tput sgr0
+    elif [[ "$1" == 'SUCCESS' ]]; then
+        echo -e "\e[32m${LOG_DATE_TIME} - [SUCCESS]: $2"
+        tput sgr0
+    elif [[ "$1" == 'WARNING' ]]; then
+        echo -e "\e[93m${LOG_DATE_TIME} - [WARNING]: $2"
+        tput sgr0
+    elif [[ "$1" == 'ERROR' ]]; then
+        echo -e "\e[91m${LOG_DATE_TIME} - [ERROR]: $2"
+        tput sgr0
+    elif [[ "$1" == 'NOFORMAT' ]]; then
+        echo -e "${LOG_DATE_TIME} - $2"
+        tput sgr0
+    else
+        echo "$@"
+        tput sgr0
+    fi
+}
+
+function usage() {
+    SCRIPT_NAME=$(basename "${0}")
+    logger 'ERROR' "Missing argument for ${SCRIPT_NAME}"
+    cat <<EOF
+
+USAGE: $ ./${SCRIPT_NAME} ENVIRONMENT
+
+Available environments:
+  - prod
+  - stg
+  - dev
+EOF
+    exit 1
+}
+
+function validate_binary {
+    KUBECTL=$(which "${1}")
+    if [[ "$?" -ne 0 ]]; then
+        logger 'ERROR' "Could not find binary ${1}!"
+        exit 1
+    fi
+}
+
+# Increment the case statement (and the 'usage()' function) with all your available clusters
+function validate_kubernetes_cluster_input {
+case "${1}" in
+    prod|PROD)
+    KUBERNETES_USER='victor-prod'
+    KUBERNETES_CLUSTER="kubernetes-cluster-prod.internal.io"
+    KUBERNETES_DASHBOARD_URL="http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/overview"
+    ;;
+    stg|STG)
+    KUBERNETES_USER='victor-stg'
+    KUBERNETES_CLUSTER="kubernetes-cluster-stg.internal.io"
+    KUBERNETES_DASHBOARD_URL="http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/overview"
+    ;;
+    dev|DEV)
+    KUBERNETES_USER=''
+    KUBERNETES_CLUSTER="kubernetes-cluster-dev.internal.io"
+    KUBERNETES_DASHBOARD_URL="http://localhost:8001/api/v1/namespaces/kube-system/services/http:kubernetes-dashboard:/proxy/#!/overview"
+    ;;
+    *)
+    usage
+    ;;
+    esac
+}
+
+function get_kubernetes_user_token {
+    python -c 'import sys, yaml, json; json.dump(yaml.load(sys.stdin), sys.stdout, indent=4)' < ~/.kube/config > /tmp/config.json
+    USER_TOKEN=$(cat /tmp/config.json| jq '.users[] | select(.name == "'${KUBERNETES_USER}'") | .user.token')
+    if [[ ! -z "${KUBERNETES_USER}" ]]; then
+        echo "${USER_TOKEN//\"/}" | xclip -sel clip
+        logger 'INFO' 'Copied cluster user token to clipboard!'
+    else
+        logger 'INFO' 'Could not find a token associated with the cluster, skipping it...'
+    fi
+    if [[ -f /tmp/config.json ]]; then rm /tmp/config.json; fi
+}
+
+function change_kubernetes_cluster {
+    logger 'INFO' "Changing cluster to '${KUBERNETES_CLUSTER}'..."
+    killall kubectl > /dev/null || true
+    kubectx "${KUBERNETES_CLUSTER}" > /dev/null
+    kubectl proxy > /dev/null &
+    xdg-open "${KUBERNETES_DASHBOARD_URL}"
+    logger 'INFO' "K8s Dashboard will be opened automaticaly, if not: ${KUBERNETES_DASHBOARD_URL}"
+}
+
+validate_binary 'basename'
+validate_binary 'kubectl'
+validate_binary 'kubectx'
+validate_binary 'xdg-open'
+validate_binary 'xclip'
+validate_binary 'jq'
+
+validate_kubernetes_cluster_input "${1}"
+get_kubernetes_user_token
+change_kubernetes_cluster
