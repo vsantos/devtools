@@ -38,3 +38,13 @@ Requirements:
 # To run just
 $ ./kluster CLUSTER-ENV
 ```
+
+## Bulk S3 backup
+
+`scripts/bulk_s3_backup`
+
+A script which will:
+  1) Get all items from a bucket
+  2) Filter all items which matches a certain pattern: `${S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN}`
+  3) Backup all items from bucket locally (just in case, even if does not matches the pattern)
+  4) Move remote files (which matched the pattern) to a remote s3 backup directory

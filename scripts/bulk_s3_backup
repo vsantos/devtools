@@ -1,0 +1,91 @@
+#!/bin/bash
+
+function logger(){
+    echo "[${1}] [$(whoami)]: ${2}"
+}
+
+function usage(){
+    logger "USAGE" "${0} --profile MY_AWS_PROFILE"
+}
+
+function validateScriptParams(){
+    if [[ -z "${1}" ]]; then
+        logger "ERROR" "Could not find a properly AWS profile"
+        usage
+        exit 1
+    fi
+}
+
+function validateInstalledBinary(){
+    GET_CURRENT_BINARY=$(which "${1}")
+
+    if [[ -z "${GET_CURRENT_BINARY}" ]]; then
+        logger "ERROR" "Could not find '${1}' binary"
+        exit 1
+    fi
+}
+
+function getS3ObjectsList(){
+    if [[ -f "${S3_OBJECTS_FILE}" ]]; then
+        logger "INFO" "Found old ${S3_OBJECTS_FILE} file, removing it..."
+        rm "${S3_OBJECTS_FILE}"
+    fi
+
+    if [[ -f "${S3_OBJECTS_LIST_FILE}" ]]; then
+        logger "INFO" "Found old ${S3_OBJECTS_LIST_FILE} file, removing it..."
+        rm "${S3_OBJECTS_LIST_FILE}"
+    fi
+
+    logger 'INFO' "Getting ALL remote bucket objects at path '${S3_BUCKET}'..."
+    aws s3 ls s3://"${1}"/ --summarize --profile "${2}" > "${S3_OBJECTS_FILE}"
+
+    logger 'INFO' "Separating files which matches the pattern '${S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN}'..."
+    for object in $(cat "${S3_OBJECTS_FILE}" | awk '{print $4}' | grep -v "${S3_REMOTE_BACKUP_DIR}" | sort); do
+        # getting only files which matches the pattern in '$S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN'
+        if [[ "${object}" == *"${S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN}"* ]]; then
+            echo "${object}" >> "${S3_OBJECTS_LIST_FILE}"
+        fi
+    done
+
+    logger "INFO" "Amount of files which matched the pattern: $(cat "${S3_OBJECTS_LIST_FILE}" | wc -l)"
+}
+
+function downloadS3ObjectsToLocal(){
+    if [[ ! -d "${S3_LOCAL_BACKUP_DIR}" ]]; then
+        mkdir "${S3_LOCAL_BACKUP_DIR}"
+    else
+        logger "INFO" "Found existent backup local dir, backing up to be posterior cleaned..."
+        tar -zcvf "${S3_LOCAL_BACKUP_DIR}_$(date | awk '{print $2 $3}').tar.gz" "${S3_LOCAL_BACKUP_DIR}" && rm -rf "${S3_LOCAL_BACKUP_DIR}"
+        mkdir "${S3_LOCAL_BACKUP_DIR}"
+    fi
+
+    logger "INFO" "Downloading all s3 object files to backup dir '${S3_LOCAL_BACKUP_DIR}'..."
+    aws s3 cp s3://"${1}"/ "${S3_LOCAL_BACKUP_DIR}/" --recursive --profile "${2}"
+
+    logger 'INFO' "backup finished, compressing it..."
+    tar -zcvf "${S3_LOCAL_BACKUP_DIR}_$(date | awk '{print $2 $3}').tar.gz" "${S3_LOCAL_BACKUP_DIR}" && rm -rf "${S3_LOCAL_BACKUP_DIR}"
+}
+
+function migratePatternMatchedFiles(){
+    for object in $(cat "${S3_OBJECTS_LIST_FILE}"); do
+        logger "INFO" "Migrating remote s3 object "${object}" to remote backup dir '${1}/${2}'..."
+        aws s3 mv s3://"${1}"/"${object}" s3://"${1}/${2}/${object}" --profile "${3}"
+    done
+}
+
+## Constants
+S3_BUCKET_ROOT='bk-tn-37967c54-0140-43f6-af55-1f9f2a02ad8e'
+S3_BUCKET="${S3_BUCKET_ROOT}/files/contabil/analiticos"
+S3_REMOTE_BACKUP_DIR='2017-bkp'
+S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN="2017-"
+S3_LOCAL_BACKUP_DIR="${S3_BUCKET_ROOT}-bkp"
+S3_OBJECTS_FILE='/tmp/s3_bucket_objects.txt'
+S3_OBJECTS_LIST_FILE='/tmp/s3_bucket_objects_list.txt'
+
+## init
+validateScriptParams "${1}"
+validateInstalledBinary "aws"
+validateInstalledBinary "tar"
+getS3ObjectsList "${S3_BUCKET}" "${1}"
+downloadS3ObjectsToLocal "${S3_BUCKET}" "${1}"
+migratePatternMatchedFiles "${S3_BUCKET}" "${S3_REMOTE_BACKUP_DIR}" "${1}"
