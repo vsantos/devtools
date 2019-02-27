@@ -48,3 +48,9 @@ A script which will:
   2) Filter all items which matches a certain pattern: `${S3_REMOTE_TO_LOCAL_BACKUP_FILE_PATTERN}`
   3) Backup all items from bucket locally (just in case, even if does not matches the pattern)
   4) Move remote files (which matched the pattern) to a remote s3 backup directory
+
+## Elastic Search - Disk Usage
+
+`script/elasticsearch_disk_usage.py`
+
+A script which will connect using REST in a remote cloud elasticsearch and retrieve disk usage data, checking the user's threshold and alarming if needed in a Slack channel. The following environment variables are needed: `XPACK_USER`, `XPACK_PASSWORD` and `SLACK_TOKEN`. Other configuration such as the threshold it self or the slack channel can be achieved editing the script directly in the `CONSTANT` session.

@@ -84,14 +84,17 @@ def verify_disk_usage(disk_usage_struct):
                 logger.info("Alarming Elasticsearch's node '{}' due to '{}' percent of available disk. The current threshold is '{}'".format(instance, node[instance]['fs_disk_available_perc'], ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD))
                 slack_notify("ES node '{}' have only '{}' percent of available disk".format(instance, node[instance]['fs_disk_available_perc']))
 
-ELASTICSEARCH_URL = 'https://767de82bb33448f498e7a72913aeba94.sa-east-1.aws.found.io:9243/'
+
+## CONSTANTS
+ELASTICSEARCH_URL = 'https://MYREMOTE_ELASTICSEARCH_HOST:9243/'
 ELASTICSEARCH_NODE_STATUS_FS_URI = '_nodes/stats/fs'
 ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD = 30
-SLACK_CUSTOM_INTEGRATION_URL = 'https://hooks.slack.com/services/T03S48U3S/B9PQFRTLG/'
-SLACK_CHANNEL = '#pipeline_two'
+SLACK_CUSTOM_INTEGRATION_URL = 'https://hooks.slack.com/services/T0000000/B000000/' # need to change with your own
+SLACK_CHANNEL = '#myslackchannel'
 SLACK_USERNAME = 'Elastisearch'
 LOGFILE_NAME = '/tmp/es_disk.log'
 
+## MAIN
 logger = logger(LOGFILE_NAME)
 validate_environment_variables(['XPACK_USERNAME','XPACK_PASSWORD','SLACK_TOKEN'])
 SLACK_TOKEN = os.environ['SLACK_TOKEN']
