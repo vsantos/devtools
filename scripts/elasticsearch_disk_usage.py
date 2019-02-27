@@ -43,6 +43,7 @@ def get_disk_info(elasticsearch_url, elasticsearch_node_status_fs_uri, xpack_use
     disk_usage_struct = []
 
     with requests.Session() as s:
+        logger.info("Getting disk metrics from remote elasticsearch...")
         response = s.get(elasticsearch_url + elasticsearch_node_status_fs_uri, auth=(xpack_username, xpack_pass))
         if response.status_code is not 200:
             logger.error("Could not get elasticsearch disk metrics due to a returned status code '{}'".format(response.status_code))
@@ -76,6 +77,7 @@ def get_disk_info(elasticsearch_url, elasticsearch_node_status_fs_uri, xpack_use
         return disk_usage_struct
 
 def verify_disk_usage(disk_usage_struct):
+    logger.info("Validating if available disk from remote elasticsearch trespassed threshold of {}%".format(ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD))
     for node in disk_usage_struct:
         for instance in node:
             if node[instance]['fs_disk_available_perc'] <= ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD:
@@ -84,7 +86,7 @@ def verify_disk_usage(disk_usage_struct):
 
 ELASTICSEARCH_URL = 'https://767de82bb33448f498e7a72913aeba94.sa-east-1.aws.found.io:9243/'
 ELASTICSEARCH_NODE_STATUS_FS_URI = '_nodes/stats/fs'
-ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD = 70
+ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD = 30
 SLACK_CUSTOM_INTEGRATION_URL = 'https://hooks.slack.com/services/T03S48U3S/B9PQFRTLG/'
 SLACK_CHANNEL = '#pipeline_two'
 SLACK_USERNAME = 'Elastisearch'
