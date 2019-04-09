@@ -1,0 +1,59 @@
+#!/bin/bash
+
+function usage(){
+    cat <<EOF
+    $ ./crds_backup $NAMESPACE
+    ex: ./crds_backup ext
+EOF
+}
+
+function compressBackup() {
+    DATE=$(date '+%Y%m%d_%H%M')
+    BACKUP_FILE="istio_api_crds_${1}-${DATE}.tar.gz"
+    echo "[INFO]: Generating backup '${BACKUP_FILE}' based on files '${2}, ${3}, ${4}'..."
+    tar -zcvf "${BACKUP_FILE}" "${2}" "${3}" "${4}"
+}
+
+function uploadToS3() {
+    echo "[INFO]: Uploading backup file to s3..."
+}
+
+if [[ -z "${1}" ]]; then
+    echo "[ERROR]: Could not find an argument for script"
+    usage
+    exit 1
+else
+    environment="${1}"
+fi
+
+SVC_BACKUP_DIR="services-${environment}"
+VSVC_BACKUP_DIR="virtualservices-${environment}"
+DS_BACKUP_DIR="destinationrules-${environment}"
+
+echo "[INFO]: Running in env ${environment}..."
+
+# handle svcs
+echo "[INFO]: Creating backup for services..."
+if [[ ! -d "${SVC_BACKUP_DIR}" ]]; then mkdir "${SVC_BACKUP_DIR}"; fi
+for svc in $(kubectl get svc --no-headers -n "${environment}" | awk '{print $1}'); do
+    echo "[INFO]: Saving service '${svc}'..."
+    kubectl get svc "${svc}" -o yaml -n "${environment}" | yq -y 'del(.spec.clusterIP)' > "${SVC_BACKUP_DIR}"/"${svc}".yaml
+done
+
+# handle virtualservices
+echo "[INFO]: Creating backup for virtualservices..."
+if [[ ! -d "${VSVC_BACKUP_DIR}" ]]; then mkdir "${VSVC_BACKUP_DIR}"; fi
+for vsvc in $(kubectl get virtualservices --no-headers -n "${environment}" | awk '{print $1}'); do
+    echo "[INFO]: Saving virtualservice '${vsvc}'..."
+    kubectl get virtualservice "${vsvc}" -o yaml -n "${environment}" > "${VSVC_BACKUP_DIR}"/"${vsvc}".yaml
+done
+
+# handle destinationrules
+echo "[INFO]: Creating backup for destinationrules..."
+if [[ ! -d "${DS_BACKUP_DIR}" ]]; then mkdir "${DS_BACKUP_DIR}"; fi
+for ds in $(kubectl get destinationrules --no-headers -n "${environment}" | awk '{print $1}'); do
+    echo "[INFO]: Saving destinationrule '${ds}'..."
+    kubectl get destinationrules "${ds}" -o yaml -n "${environment}" > "${DS_BACKUP_DIR}"/"${ds}".yaml
+done
+
+compressBackup "${environment}" "${SVC_BACKUP_DIR}" "${VSVC_BACKUP_DIR}" "${DS_BACKUP_DIR}"
