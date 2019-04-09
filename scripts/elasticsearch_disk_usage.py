@@ -83,20 +83,29 @@ def verify_disk_usage(disk_usage_struct):
             if node[instance]['fs_disk_available_perc'] <= ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD:
                 logger.info("Alarming Elasticsearch's node '{}' due to '{}' percent of available disk. The current threshold is '{}'".format(instance, node[instance]['fs_disk_available_perc'], ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD))
                 slack_notify("ES node '{}' have only '{}' percent of available disk".format(instance, node[instance]['fs_disk_available_perc']))
+                return {"message": "alarming"}
 
+def main(event, context):
+    ## CONSTANTS
+    ELASTICSEARCH_URL = 'https://767de82bb33448f498e7a72913aeba94.sa-east-1.aws.found.io:9243/'
+    ELASTICSEARCH_NODE_STATUS_FS_URI = '_nodes/stats/fs'
+    ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD = 30
+    SLACK_CUSTOM_INTEGRATION_URL = 'https://hooks.slack.com/services/T0000000/B000000/' # need to change with your own
+    SLACK_CHANNEL = '#myslackchannel'
+    SLACK_USERNAME = 'Elastisearch'
+    LOGFILE_NAME = '/tmp/es_disk.log'
 
-## CONSTANTS
-ELASTICSEARCH_URL = 'https://MYREMOTE_ELASTICSEARCH_HOST:9243/'
-ELASTICSEARCH_NODE_STATUS_FS_URI = '_nodes/stats/fs'
-ELASTICSEARCH_DISK_AVAILABLE_THRESHOLD = 30
-SLACK_CUSTOM_INTEGRATION_URL = 'https://hooks.slack.com/services/T0000000/B000000/' # need to change with your own
-SLACK_CHANNEL = '#myslackchannel'
-SLACK_USERNAME = 'Elastisearch'
-LOGFILE_NAME = '/tmp/es_disk.log'
+    ## MAIN
+    logger = logger(LOGFILE_NAME)
+    validate_environment_variables(['XPACK_USERNAME','XPACK_PASSWORD','SLACK_TOKEN'])
+    SLACK_TOKEN = os.environ['SLACK_TOKEN']
+    disk_usage_struct = get_disk_info(ELASTICSEARCH_URL, ELASTICSEARCH_NODE_STATUS_FS_URI, os.environ['XPACK_USERNAME'], os.environ['XPACK_PASSWORD'])
+    verify_disk_usage(disk_usage_struct)
 
-## MAIN
-logger = logger(LOGFILE_NAME)
-validate_environment_variables(['XPACK_USERNAME','XPACK_PASSWORD','SLACK_TOKEN'])
-SLACK_TOKEN = os.environ['SLACK_TOKEN']
-disk_usage_struct = get_disk_info(ELASTICSEARCH_URL, ELASTICSEARCH_NODE_STATUS_FS_URI, os.environ['XPACK_USERNAME'], os.environ['XPACK_PASSWORD'])
-verify_disk_usage(disk_usage_struct)
+if __name__ == "__main__":
+    ## MAIN
+    logger = logger(LOGFILE_NAME)
+    validate_environment_variables(['XPACK_USERNAME','XPACK_PASSWORD','SLACK_TOKEN'])
+    SLACK_TOKEN = os.environ['SLACK_TOKEN']
+    disk_usage_struct = get_disk_info(ELASTICSEARCH_URL, ELASTICSEARCH_NODE_STATUS_FS_URI, os.environ['XPACK_USERNAME'], os.environ['XPACK_PASSWORD'])
+    verify_disk_usage(disk_usage_struct)

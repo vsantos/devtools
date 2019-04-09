@@ -54,3 +54,5 @@ A script which will:
 `script/elasticsearch_disk_usage.py`
 
 A script which will connect using REST in a remote cloud elasticsearch and retrieve disk usage data, checking the user's threshold and alarming if needed in a Slack channel. The following environment variables are needed: `XPACK_USER`, `XPACK_PASSWORD` and `SLACK_TOKEN`. Other configuration such as the threshold it self or the slack channel can be achieved editing the script directly in the `CONSTANT` session.
+
+Obs: It can be also be used as a AWS python lambda. Requests module must be imported as boto for achieving this goal.
