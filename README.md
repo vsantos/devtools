@@ -64,3 +64,12 @@ Obs: It can be also be used as a AWS python lambda. Requests module must be impo
 A script which will:
   1) Given a namespace the script will get a copy for the following CRDs: services, virtualservices and destinationrules
   2) Compress it in a single `tar.gz` backup file
+
+
+## Automated k8s user creation
+
+`scripts/create_kubernetes_user`
+
+A script which will:
+  1) Create a kubernetes user based on user's input (username & namespace)
+  2) Get token from the user, decode it and set as clipboard to a posterior paste

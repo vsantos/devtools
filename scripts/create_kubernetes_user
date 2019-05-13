@@ -1,0 +1,56 @@
+#!/bin/bash
+
+function logger(){
+    echo "[${1}] [$(whoami)]: ${2:kube-system}"
+}
+
+function usage(){
+    logger "USAGE" "${0} SERVICEACCOUNT NAMESPACE"
+}
+
+function validateScriptParams(){
+    if [[ -z "${1}" ]]; then
+        logger "ERROR" "Could not find a serviceaccount name"
+        usage
+        exit 1
+    fi
+}
+
+function validateInstalledBinary(){
+    GET_CURRENT_BINARY=$(which "${1}")
+
+    if [[ -z "${GET_CURRENT_BINARY}" ]]; then
+        logger "ERROR" "Could not find '${1}' binary"
+        exit 1
+    fi
+}
+
+function create_user(){
+    kubectl create serviceaccount "${1}" -n "${2:kube-system}"
+}
+
+function get_user_token(){
+    TOKEN_NAME=$(kubectl get secrets -n "${2:kube-system}" \
+        | grep service-account-token \
+        | grep "${1}" \
+        | awk '{print $1}')
+
+    echo "INFO" "Got token file '${TOKEN_NAME}'"
+    kubectl get secret "${TOKEN_NAME}" -o yaml -n "${2:kube-system}" \
+        | yq -y '.data.token' \
+        | base64 -di \
+        | xclip -sel clip
+
+    echo "INFO" "Copied token successfully into clipboard"
+}
+
+if [[ ! -f "${HOME}/.kube/config" ]]; then
+    logger "ERROR" "Could not find ~/.kube/config file. Refusing to continue"
+fi
+
+validateInstalledBinary 'kubectl'
+validateInstalledBinary 'base64'
+validateInstalledBinary 'xclip'
+validateScriptParams "${1}" "${2}"
+create_user "${1}" "${2:kube-system}"
+get_user_token "${1}" "${2:kube-system}"
